@@ -18,9 +18,31 @@ Typical use:
 Installation
 ============
 
-PSearch requires python 2.5 or later and depends on numpy.
+PSearch requires Python 3.11 or later.
 
-There is not yet an installation script, so put the psearch package somewhere in your PYTHONPATH.
+Install the package in editable mode:
+
+::
+
+    python -m pip install -e .
+
+Install LMDB support:
+
+::
+
+    python -m pip install -e .[lmdb]
+
+Install test dependencies:
+
+::
+
+    python -m pip install -e .[test]
+
+Install benchmark dependencies:
+
+::
+
+    python -m pip install -e .[benchmark]
 
 Sample Usage
 ============
@@ -49,19 +71,16 @@ Details
 Storage
 -------
 
-The method of storing indexed queries is configurable. PSearch comes with 3 built in options for storage:
+The method of storing indexed queries is configurable. PSearch currently ships with 3 storage backends:
 
 MemoryStore 
     Holds all data in memory. Data can optionally be read from or written to disk (uses pickle).
 
-GDBMStore
-    Stores data in a GDBM database. This is convenient as it is always included in the python distribution.
+SQLiteStore
+    Stores data in SQLite using WAL mode for a durable, portable on-disk index.
 
-TCHStore
-    Stores data in a `Tokyo Cabinet`_ database. This is more efficient than GDBM, however it requires `Tokyo Cabinet`_ and the pytc_ bindings to be installed.
-
-.. _`Tokyo Cabinet`: http://fallabs.com/tokyocabinet/
-.. _pytc: http://pypi.python.org/pypi/pytc
+LMDBStore
+    Stores data in LMDB for read-heavy workloads where embedded key-value performance matters.
 
 Terms
 -----
@@ -104,13 +123,37 @@ Limitations
 
 Queries are currently limited to 31 terms, excluding terms combined with OR. This limit can be changed internally. This is a common upper bound, at the time of writing, google limits searches to 32 words.
 
-Performance
------------
+Testing
+-------
 
-Document size, term frequency, query complexity, use of filters, etc. all play a part in the performance of the system. There is a small benchmark program that can be used to run some quick tests:
+Run the test suite with:
 
 ::
 
-    $ python -m psearch.psearch_test  -p
-    indexed 10000 queries in 2.984095 seconds
-    100000 documents processed in 4.811013 seconds (20785.643345 docs/sec)
+    pytest
+
+Benchmarks
+----------
+
+Run the benchmark suite with:
+
+::
+
+    pytest tests/test_benchmarks.py --benchmark-min-rounds=3
+
+Measured results on a 2023 MacBook Pro with Apple M3 for the 10,000-query
+synthetic workload in ``tests/test_benchmarks.py``:
+
++-------------+------------------+--------------------+--------------------------+
+| Backend     | Index queries/s  | Match docs/s       | Time for 10,000 matches  |
++=============+==================+====================+==========================+
+| MemoryStore | ~172,800         | ~22,600            | ~0.44s                   |
++-------------+------------------+--------------------+--------------------------+
+| SQLiteStore | ~11,900          | ~2,360             | ~4.24s                   |
++-------------+------------------+--------------------+--------------------------+
+| LMDBStore   | ~9,840           | ~5,470             | ~1.83s                   |
++-------------+------------------+--------------------+--------------------------+
+
+These numbers come from indexing 10,000 generated queries and matching 250
+generated documents against an already-open store. They are useful for
+backend comparison, not as universal capacity figures.
