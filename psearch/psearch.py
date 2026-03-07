@@ -58,43 +58,51 @@ def index(queries, storage):
             termfreqs[tid] += 1
         return tid
 
-    for query in queries:
-        qcount += 1
-        if len(query.search_terms) > _MAX_QUERY_TERMS:
-            raise ValueError(f"queries are limited to {_MAX_QUERY_TERMS} terms")
-        for pos, or_terms in enumerate(query.search_terms):
-            for term in or_terms:
-                saveddata.append((query.query_id, term_id(term), pos))
-        storage.set_data(query.query_id, query.data_dict)
-        qloaded += 1
+    storage.begin_bulk_load()
+    try:
+        for query in queries:
+            qcount += 1
+            if len(query.search_terms) > _MAX_QUERY_TERMS:
+                raise ValueError(f"queries are limited to {_MAX_QUERY_TERMS} terms")
+            for pos, or_terms in enumerate(query.search_terms):
+                for term in or_terms:
+                    saveddata.append((query.query_id, term_id(term), pos))
+            storage.set_data(query.query_id, query.data_dict)
+            qloaded += 1
 
-    saveddata.sort(key=itemgetter(0, 2, 1))
-    btype_rare: list[tuple[int, int, int]] = []
-    btype_term: list[tuple[int, int, int]] = []
-    for qid, vals_iter in groupby(saveddata, itemgetter(0)):
-        vals = list(vals_iter)
-        positions = [
-            [row[1] for row in pos_group]
-            for _, pos_group in groupby(vals, itemgetter(2))
-        ]
-        pos_freq = [sum(termfreqs[tid] for tid in tids) for tids in positions]
-        min_freq = min(pos_freq)
-        min_mask = 0
-        min_terms = None
-        for pos, (or_terms, freq) in enumerate(zip(positions, pos_freq)):
-            if freq == min_freq and min_terms is None:
-                min_terms = or_terms
-                continue
-            pos_bit = 1 << pos
-            min_mask |= pos_bit
-            mask = ~pos_bit
-            btype_term.extend((tid, qid, mask) for tid in or_terms)
-        assert min_terms is not None
-        btype_rare.extend((tid, qid, min_mask) for tid in min_terms)
+        saveddata.sort(key=itemgetter(0, 2, 1))
+        btype_rare: list[tuple[int, int, int]] = []
+        btype_term: list[tuple[int, int, int]] = []
+        for qid, vals_iter in groupby(saveddata, itemgetter(0)):
+            vals = list(vals_iter)
+            positions = [
+                [row[1] for row in pos_group]
+                for _, pos_group in groupby(vals, itemgetter(2))
+            ]
+            pos_freq = [sum(termfreqs[tid] for tid in tids) for tids in positions]
+            min_freq = min(pos_freq)
+            min_mask = 0
+            min_terms = None
+            for pos, (or_terms, freq) in enumerate(zip(positions, pos_freq)):
+                if freq == min_freq and min_terms is None:
+                    min_terms = or_terms
+                    continue
+                pos_bit = 1 << pos
+                min_mask |= pos_bit
+                mask = ~pos_bit
+                btype_term.extend((tid, qid, mask) for tid in or_terms)
+            assert min_terms is not None
+            btype_rare.extend((tid, qid, min_mask) for tid in min_terms)
 
-    reverse_termmap = {tid: term for term, tid in termmap.items()}
-    _write_terms("R", reverse_termmap, btype_rare, storage)
-    _write_terms("T", reverse_termmap, btype_term, storage)
+        reverse_termmap = {tid: term for term, tid in termmap.items()}
+        _write_terms("R", reverse_termmap, btype_rare, storage)
+        _write_terms("T", reverse_termmap, btype_term, storage)
+    except Exception:
+        storage.abort_bulk_load()
+        raise
+    else:
+        storage.end_bulk_load()
+
     log.info(
         "loaded %s/%s queries into query index: %s unique terms, %s total",
         qloaded,

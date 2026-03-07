@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("pytest_benchmark")
+
 from psearch import Document, MemoryStore, Query, QueryMatcher, SQLiteStore, index
 from psearch.pstorage import LMDBStore
 

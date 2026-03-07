@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 _POSTING_STRUCT = struct.Struct("<ii")
+_TERM_KEY_HEADER = struct.Struct(">II")
 
 
 class MemoryStore:
@@ -53,6 +54,15 @@ class MemoryStore:
         for (prefix, term), values in self.postmap.items():
             yield prefix, term, iter(values)
 
+    def begin_bulk_load(self) -> None:
+        return None
+
+    def end_bulk_load(self) -> None:
+        return None
+
+    def abort_bulk_load(self) -> None:
+        return None
+
 
 class SQLiteStore:
     """SQLite-backed storage suitable for durable embedded indexes."""
@@ -60,6 +70,7 @@ class SQLiteStore:
     def __init__(self, fname: str, readmode: bool = False):
         self.fname = fname
         self.readmode = readmode
+        self._in_bulk_load = False
         uri = Path(fname).resolve().as_uri()
         if readmode:
             self.conn = sqlite3.connect(f"{uri}?mode=ro", uri=True)
@@ -79,7 +90,8 @@ class SQLiteStore:
                 prefix TEXT NOT NULL,
                 term TEXT NOT NULL,
                 qid INTEGER NOT NULL,
-                mask INTEGER NOT NULL
+                mask INTEGER NOT NULL,
+                PRIMARY KEY(prefix, term, qid, mask)
             );
             CREATE INDEX IF NOT EXISTS idx_posts_prefix_term
                 ON posts(prefix, term, qid);
@@ -92,6 +104,8 @@ class SQLiteStore:
         self.conn.commit()
 
     def close(self) -> None:
+        if self._in_bulk_load:
+            self.end_bulk_load()
         self.conn.close()
 
     def write_posts(
@@ -101,9 +115,11 @@ class SQLiteStore:
         if not rows:
             return
         self.conn.executemany(
-            "INSERT INTO posts(prefix, term, qid, mask) VALUES (?, ?, ?, ?)", rows
+            "INSERT OR REPLACE INTO posts(prefix, term, qid, mask) VALUES (?, ?, ?, ?)",
+            rows,
         )
-        self.conn.commit()
+        if not self._in_bulk_load:
+            self.conn.commit()
 
     def read_posts(self, prefix: str, term: str) -> Iterator[tuple[int, int]]:
         rows = self.conn.execute(
@@ -117,7 +133,8 @@ class SQLiteStore:
         self.conn.execute(
             "INSERT OR REPLACE INTO qdata(qid, payload) VALUES (?, ?)", (qid, payload)
         )
-        self.conn.commit()
+        if not self._in_bulk_load:
+            self.conn.commit()
 
     def get_data(self, qid: int, default: Any = None) -> Any:
         row = self.conn.execute(
@@ -147,6 +164,24 @@ class SQLiteStore:
         if current_key is not None:
             yield current_key[0], current_key[1], iter(postings)
 
+    def begin_bulk_load(self) -> None:
+        if self.readmode or self._in_bulk_load:
+            return
+        self.conn.execute("BEGIN IMMEDIATE")
+        self._in_bulk_load = True
+
+    def end_bulk_load(self) -> None:
+        if self.readmode or not self._in_bulk_load:
+            return
+        self.conn.commit()
+        self._in_bulk_load = False
+
+    def abort_bulk_load(self) -> None:
+        if self.readmode or not self._in_bulk_load:
+            return
+        self.conn.rollback()
+        self._in_bulk_load = False
+
 
 class LMDBStore:
     """LMDB-backed storage for high-throughput local indexes."""
@@ -174,10 +209,20 @@ class LMDBStore:
         self.env.close()
 
     def _posts_key(self, prefix: str, term: str) -> bytes:
-        return f"{prefix}\x1f{term}".encode("utf-8")
+        prefix_bytes = prefix.encode("utf-8")
+        term_bytes = term.encode("utf-8")
+        return b"P" + _TERM_KEY_HEADER.pack(len(prefix_bytes), len(term_bytes)) + prefix_bytes + term_bytes
 
     def _data_key(self, qid: int) -> bytes:
-        return f"_{qid}".encode("ascii")
+        return f"D{qid}".encode("ascii")
+
+    def _decode_posts_key(self, payload: bytes) -> tuple[str, str]:
+        prefix_len, term_len = _TERM_KEY_HEADER.unpack_from(payload, 1)
+        offset = 1 + _TERM_KEY_HEADER.size
+        prefix = payload[offset : offset + prefix_len].decode("utf-8")
+        offset += prefix_len
+        term = payload[offset : offset + term_len].decode("utf-8")
+        return prefix, term
 
     def _encode_posts(self, values: Iterable[tuple[int, int]]) -> bytes:
         return b"".join(_POSTING_STRUCT.pack(qid, mask) for qid, mask in values)
@@ -216,8 +261,17 @@ class LMDBStore:
         with self.env.begin() as txn:
             with txn.cursor() as cursor:
                 for key, payload in cursor:
-                    if key.startswith(b"_"):
+                    if not key.startswith(b"P"):
                         continue
-                    prefix, term = key.decode("utf-8").split("\x1f", 1)
+                    prefix, term = self._decode_posts_key(key)
                     postings = list(self._decode_posts(payload))
                     yield prefix, term, iter(postings)
+
+    def begin_bulk_load(self) -> None:
+        return None
+
+    def end_bulk_load(self) -> None:
+        return None
+
+    def abort_bulk_load(self) -> None:
+        return None

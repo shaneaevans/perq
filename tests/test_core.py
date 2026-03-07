@@ -56,6 +56,37 @@ def test_recreate_queries_from_index(store):
     ]
 
 
+def test_reindexing_same_sqlite_db_does_not_duplicate_postings(tmp_path):
+    path = tmp_path / "index.sqlite"
+    queries = [
+        Query(1, [("alpha",), ("beta",)]),
+        Query(2, [("beta",), ("gamma",)]),
+    ]
+
+    first = SQLiteStore(str(path))
+    try:
+        index(queries, first)
+    finally:
+        first.close()
+
+    second = SQLiteStore(str(path))
+    try:
+        index(queries, second)
+    finally:
+        second.close()
+
+    reader = SQLiteStore(str(path), readmode=True)
+    try:
+        assert list(recreate_queries(reader)) == [
+            (1, [["alpha"], ["beta"]]),
+            (2, [["beta"], ["gamma"]]),
+        ]
+        matcher = QueryMatcher(reader)
+        assert list(matcher.matches(Document({"body": [["alpha", "beta"]]}))) == [1]
+    finally:
+        reader.close()
+
+
 def test_matcher_handles_or_groups_and_filters(store):
     queries = [
         Query(1, [("information",), ("retrieval",)]),
@@ -192,5 +223,26 @@ def test_lmdb_persists_across_reopen_when_available(tmp_path):
         matcher = QueryMatcher(reader)
         assert list(matcher.matches(Document({"body": [["alpha", "beta"]]}))) == [20]
         assert list(recreate_queries(reader)) == [(20, [["alpha"], ["beta"]])]
+    finally:
+        reader.close()
+
+
+def test_lmdb_round_trips_terms_with_separator_char(tmp_path):
+    if importlib.util.find_spec("lmdb") is None:
+        pytest.skip("lmdb is not installed")
+
+    path = tmp_path / "separator.lmdb"
+    term = "alpha\x1fbeta"
+    writer = LMDBStore(str(path))
+    try:
+        index([Query(30, [(term,), ("gamma",)])], writer)
+    finally:
+        writer.close()
+
+    reader = LMDBStore(str(path), readmode=True)
+    try:
+        assert list(recreate_queries(reader)) == [(30, [[term], ["gamma"]])]
+        matcher = QueryMatcher(reader)
+        assert list(matcher.matches(Document({"body": [[term, "gamma"]]}))) == [30]
     finally:
         reader.close()

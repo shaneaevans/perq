@@ -139,19 +139,19 @@ Run the benchmark suite with:
 
 ::
 
-    pytest tests/test_benchmarks.py --benchmark-min-rounds=3
+    pytest benchmarks/test_benchmarks.py --benchmark-min-rounds=3
 
 Measured results on a 2023 MacBook Pro with Apple M3 for the 10,000-query
-synthetic workload in ``tests/test_benchmarks.py``:
+synthetic workload in ``benchmarks/test_benchmarks.py``:
 
 +-------------+------------------+--------------------+--------------------------+
 | Backend     | Index queries/s  | Match docs/s       | Time for 10,000 matches  |
 +=============+==================+====================+==========================+
-| MemoryStore | ~172,800         | ~22,600            | ~0.44s                   |
+| MemoryStore | ~173,000         | ~23,500            | ~0.43s                   |
 +-------------+------------------+--------------------+--------------------------+
-| SQLiteStore | ~11,900          | ~2,360             | ~4.24s                   |
+| SQLiteStore | ~40,500          | ~2,550             | ~3.93s                   |
 +-------------+------------------+--------------------+--------------------------+
-| LMDBStore   | ~9,840           | ~5,470             | ~1.83s                   |
+| LMDBStore   | ~9,920           | ~5,630             | ~1.78s                   |
 +-------------+------------------+--------------------+--------------------------+
 
 These numbers come from indexing 10,000 generated queries and matching 250
