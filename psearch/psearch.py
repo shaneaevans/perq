@@ -8,13 +8,15 @@ import logging
 from itertools import chain, groupby
 from operator import itemgetter
 
+from .pstorage import StorageProtocol
+
 log = logging.getLogger("psearch")
 
 _MAX_QUERY_TERMS = 31
 
 
 class QueryMatcher:
-    def __init__(self, storage):
+    def __init__(self, storage: StorageProtocol):
         self.storage = storage
 
     def matches(self, document):
@@ -41,7 +43,7 @@ class QueryMatcher:
                 yield qid
 
 
-def index(queries, storage):
+def index(queries, storage: StorageProtocol):
     """Build an index for a sequence of queries."""
     termmap: dict[str, int] = {}
     termfreqs: list[int] = []

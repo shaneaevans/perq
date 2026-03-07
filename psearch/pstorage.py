@@ -9,10 +9,31 @@ import sqlite3
 import struct
 from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, TypeAlias
+
+Posting: TypeAlias = tuple[int, int]
+QueryData: TypeAlias = dict[str, Any]
 
 _POSTING_STRUCT = struct.Struct("<ii")
 _TERM_KEY_HEADER = struct.Struct(">II")
+
+
+class StorageProtocol(Protocol):
+    def write_posts(self, prefix: str, term: str, values: Iterable[Posting]) -> None: ...
+
+    def read_posts(self, prefix: str, term: str) -> Iterator[Posting]: ...
+
+    def set_data(self, qid: int, data: QueryData) -> None: ...
+
+    def get_data(self, qid: int, default: Any = None) -> Any: ...
+
+    def iteritems(self) -> Iterator[tuple[str, str, Iterator[Posting]]]: ...
+
+    def begin_bulk_load(self) -> None: ...
+
+    def end_bulk_load(self) -> None: ...
+
+    def abort_bulk_load(self) -> None: ...
 
 
 class MemoryStore:
@@ -26,8 +47,8 @@ class MemoryStore:
                 self.postmap = pickle.load(pfile)
                 self.data = pickle.load(pfile)
         else:
-            self.postmap: dict[tuple[str, str], list[tuple[int, int]]] = {}
-            self.data: dict[int, dict[str, Any]] = {}
+            self.postmap: dict[tuple[str, str], list[Posting]] = {}
+            self.data: dict[int, QueryData] = {}
 
     def close(self) -> None:
         if self.fname is None or self.readmode:
@@ -37,20 +58,20 @@ class MemoryStore:
             pickle.dump(self.data, pfile, protocol=pickle.HIGHEST_PROTOCOL)
 
     def write_posts(
-        self, prefix: str, term: str, values: Iterable[tuple[int, int]]
+        self, prefix: str, term: str, values: Iterable[Posting]
     ) -> None:
         self.postmap[(prefix, term)] = list(values)
 
-    def read_posts(self, prefix: str, term: str) -> Iterator[tuple[int, int]]:
+    def read_posts(self, prefix: str, term: str) -> Iterator[Posting]:
         return iter(self.postmap.get((prefix, term), ()))
 
-    def set_data(self, qid: int, data: dict[str, Any]) -> None:
+    def set_data(self, qid: int, data: QueryData) -> None:
         self.data[qid] = data
 
     def get_data(self, qid: int, default: Any = None) -> Any:
         return self.data.get(qid, default)
 
-    def iteritems(self) -> Iterator[tuple[str, str, Iterator[tuple[int, int]]]]:
+    def iteritems(self) -> Iterator[tuple[str, str, Iterator[Posting]]]:
         for (prefix, term), values in self.postmap.items():
             yield prefix, term, iter(values)
 
@@ -109,7 +130,7 @@ class SQLiteStore:
         self.conn.close()
 
     def write_posts(
-        self, prefix: str, term: str, values: Iterable[tuple[int, int]]
+        self, prefix: str, term: str, values: Iterable[Posting]
     ) -> None:
         rows = [(prefix, term, qid, mask) for qid, mask in values]
         if not rows:
@@ -121,14 +142,14 @@ class SQLiteStore:
         if not self._in_bulk_load:
             self.conn.commit()
 
-    def read_posts(self, prefix: str, term: str) -> Iterator[tuple[int, int]]:
+    def read_posts(self, prefix: str, term: str) -> Iterator[Posting]:
         rows = self.conn.execute(
             "SELECT qid, mask FROM posts WHERE prefix = ? AND term = ? ORDER BY qid",
             (prefix, term),
         )
         return ((int(row["qid"]), int(row["mask"])) for row in rows)
 
-    def set_data(self, qid: int, data: dict[str, Any]) -> None:
+    def set_data(self, qid: int, data: QueryData) -> None:
         payload = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
         self.conn.execute(
             "INSERT OR REPLACE INTO qdata(qid, payload) VALUES (?, ?)", (qid, payload)
@@ -144,12 +165,12 @@ class SQLiteStore:
             return default
         return pickle.loads(row["payload"])
 
-    def iteritems(self) -> Iterator[tuple[str, str, Iterator[tuple[int, int]]]]:
+    def iteritems(self) -> Iterator[tuple[str, str, Iterator[Posting]]]:
         rows = self.conn.execute(
             "SELECT prefix, term, qid, mask FROM posts ORDER BY prefix, term, qid"
         )
         current_key: tuple[str, str] | None = None
-        postings: list[tuple[int, int]] = []
+        postings: list[Posting] = []
         for row in rows:
             key = (str(row["prefix"]), str(row["term"]))
             posting = (int(row["qid"]), int(row["mask"]))
@@ -224,28 +245,28 @@ class LMDBStore:
         term = payload[offset : offset + term_len].decode("utf-8")
         return prefix, term
 
-    def _encode_posts(self, values: Iterable[tuple[int, int]]) -> bytes:
+    def _encode_posts(self, values: Iterable[Posting]) -> bytes:
         return b"".join(_POSTING_STRUCT.pack(qid, mask) for qid, mask in values)
 
-    def _decode_posts(self, payload: bytes) -> Iterator[tuple[int, int]]:
+    def _decode_posts(self, payload: bytes) -> Iterator[Posting]:
         for offset in range(0, len(payload), _POSTING_STRUCT.size):
             yield _POSTING_STRUCT.unpack_from(payload, offset)
 
     def write_posts(
-        self, prefix: str, term: str, values: Iterable[tuple[int, int]]
+        self, prefix: str, term: str, values: Iterable[Posting]
     ) -> None:
         payload = self._encode_posts(values)
         with self.env.begin(write=True) as txn:
             txn.put(self._posts_key(prefix, term), payload)
 
-    def read_posts(self, prefix: str, term: str) -> Iterator[tuple[int, int]]:
+    def read_posts(self, prefix: str, term: str) -> Iterator[Posting]:
         with self.env.begin() as txn:
             payload = txn.get(self._posts_key(prefix, term))
         if payload is None:
             return iter(())
         return self._decode_posts(payload)
 
-    def set_data(self, qid: int, data: dict[str, Any]) -> None:
+    def set_data(self, qid: int, data: QueryData) -> None:
         payload = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
         with self.env.begin(write=True) as txn:
             txn.put(self._data_key(qid), payload)
@@ -257,7 +278,7 @@ class LMDBStore:
             return default
         return pickle.loads(payload)
 
-    def iteritems(self) -> Iterator[tuple[str, str, Iterator[tuple[int, int]]]]:
+    def iteritems(self) -> Iterator[tuple[str, str, Iterator[Posting]]]:
         with self.env.begin() as txn:
             with txn.cursor() as cursor:
                 for key, payload in cursor:
