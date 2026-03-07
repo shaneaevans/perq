@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psearch"
+version = "0.1.0"
+description = "Prospective search indexes for matching documents against stored queries."
+readme = "README.rst"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "PSearch Authors"}]
+dependencies = []
+
+[project.optional-dependencies]
+lmdb = ["lmdb>=1.4"]
+test = ["pytest>=8.0"]
+benchmark = ["pytest>=8.0", "pytest-benchmark>=5.1"]
+
+[tool.setuptools]
+packages = ["psearch"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["benchmark: performance benchmarks for indexing and matching workloads"]
