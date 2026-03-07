@@ -87,6 +87,42 @@ def test_reindexing_same_sqlite_db_does_not_duplicate_postings(tmp_path):
         reader.close()
 
 
+def test_reindexing_same_sqlite_db_with_modified_clause_positions(tmp_path):
+    path = tmp_path / "index.sqlite"
+    original_queries = [
+        Query(1, [("alpha",), ("beta",)]),
+        Query(2, [("beta",), ("gamma",)]),
+    ]
+
+    first = SQLiteStore(str(path))
+    try:
+        index(original_queries, first)
+    finally:
+        first.close()
+
+    modified_queries = [
+        Query(1, [("beta",), ("alpha",)]),
+        Query(2, [("gamma",), ("beta",)]),
+    ]
+
+    second = SQLiteStore(str(path))
+    try:
+        index(modified_queries, second)
+    finally:
+        second.close()
+
+    reader = SQLiteStore(str(path), readmode=True)
+    try:
+        assert list(recreate_queries(reader)) == [
+            (1, [["beta"], ["alpha"]]),
+            (2, [["gamma"], ["beta"]]),
+        ]
+        matcher = QueryMatcher(reader)
+        assert list(matcher.matches(Document({"body": [["alpha", "beta"]]}))) == [1]
+    finally:
+        reader.close()
+
+
 def test_matcher_handles_or_groups_and_filters(store):
     queries = [
         Query(1, [("information",), ("retrieval",)]),

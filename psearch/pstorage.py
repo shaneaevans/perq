@@ -133,7 +133,13 @@ class SQLiteStore:
         self, prefix: str, term: str, values: Iterable[Posting]
     ) -> None:
         rows = [(prefix, term, qid, mask) for qid, mask in values]
+        self.conn.execute(
+            "DELETE FROM posts WHERE prefix = ? AND term = ?",
+            (prefix, term),
+        )
         if not rows:
+            if not self._in_bulk_load:
+                self.conn.commit()
             return
         self.conn.executemany(
             "INSERT OR REPLACE INTO posts(prefix, term, qid, mask) VALUES (?, ?, ?, ?)",
