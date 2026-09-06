@@ -1,0 +1,3 @@
+{"id":"data-alert","terms":[["data","text"],["mining"]],"filters":[{"field":"price","gte":100,"lt":200}]}
+{"id":"python-route","terms":[["python"]],"metadata":{"destination":"engineering"}}
+{"id":"price-only","filters":[{"field":"price","lte":50}]}

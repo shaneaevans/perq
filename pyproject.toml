@@ -1,25 +1,55 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "psearch"
-version = "0.1.0"
-description = "Prospective search indexes for matching documents against stored queries."
-readme = "README.rst"
+name = "perq"
+version = "0.2.0"
+description = "Match scraped documents against large sets of saved queries in one Python process."
+readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
-authors = [{name = "PSearch Authors"}]
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Perq Authors"}]
 dependencies = []
+keywords = ["percolator", "prospective-search", "reverse-search", "web-scraping", "document-routing", "saved-search", "boolean-matching"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Text Processing :: Indexing",
+]
+
+[project.urls]
+Homepage = "https://github.com/shaneaevans/perq"
+Documentation = "https://github.com/shaneaevans/perq/blob/master/docs/usage.md"
+Issues = "https://github.com/shaneaevans/perq/issues"
+Changelog = "https://github.com/shaneaevans/perq/blob/master/CHANGELOG.md"
+
+[project.scripts]
+perq = "perq.cli:main"
 
 [project.optional-dependencies]
 lmdb = ["lmdb>=1.4"]
-test = ["pytest>=8.0"]
-benchmark = ["pytest>=8.0", "pytest-benchmark>=5.1"]
+test = ["pytest>=8.0", "jsonschema>=4.23"]
+dev = ["pytest>=8.0", "jsonschema>=4.23", "build>=1.2", "twine>=6", "ruff>=0.11"]
 
 [tool.setuptools]
-packages = ["psearch"]
+packages = ["perq"]
+
+[tool.setuptools.package-data]
+perq = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["benchmark: performance benchmarks for indexing and matching workloads"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

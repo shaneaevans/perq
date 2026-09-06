@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Perq document",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {"oneOf": [{"type": "integer"}, {"type": "string", "minLength": 1}]},
+    "text": {"type": "string"},
+    "terms": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "values": {
+      "type": "object", "propertyNames": {"minLength": 1},
+      "additionalProperties": {"type": "array", "items": {"type": "number"}}
+    }
+  },
+  "oneOf": [{"required": ["text"]}, {"required": ["terms"]}]
+}

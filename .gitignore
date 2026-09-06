@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.benchmarks/
+build/
+dist/
+*.egg-info/
+*.sqlite
+*.sqlite-*
+*.lmdb
+*.lmdb-lock

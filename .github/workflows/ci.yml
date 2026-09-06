@@ -1,0 +1,50 @@
+name: Tests and distribution checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python -m pip install '.[test,lmdb]'
+      - run: python -m pytest -q
+
+  distribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: python -m pip install '.[dev,lmdb]'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: python -m build
+      - run: twine check dist/*
+      - run: python tools/verify_wheel.py
+      - run: python benchmarks/run.py --queries 100 --documents 5 --tokens 30 --backends memory sqlite lmdb --distributions uniform zipf broad --output benchmark-smoke.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: distributions
+          path: dist/*
+          if-no-files-found: error

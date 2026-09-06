@@ -1,0 +1,36 @@
+{
+  "environment": {
+    "python": "3.14.4 (main, Apr  7 2026, 13:13:20) [Clang 21.0.0 (clang-2100.0.123.102)]",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "cpu_count": 12,
+    "package_version": "0.2.0"
+  },
+  "method": "fresh process per case; warm reads; input generation included only in build; RSS recorded before reference allocation",
+  "results": [
+    {
+      "queries": 1000000,
+      "backend": "sqlite",
+      "tokens": 30,
+      "distribution": "uniform",
+      "documents": 100,
+      "vocab": 10000,
+      "seed": 7,
+      "reference_documents": 3,
+      "build_seconds": 27.21641587499471,
+      "build_includes_query_generation": true,
+      "build_peak_rss_bytes": 58441728,
+      "match_peak_rss_bytes": 58441728,
+      "index_file_bytes": 269410304,
+      "reopen_seconds": 0.00048637499276082963,
+      "documents_per_second": 171.003004450484,
+      "latency_p50_ms": 5.799104495963547,
+      "latency_p95_ms": 6.122374994447455,
+      "latency_p99_ms": 8.246291006798856,
+      "matching_query_ids_emitted": 132900,
+      "reference_documents_checked": 3,
+      "reference_mean_ms": 269.1270556630722,
+      "matching_mean_ms_on_reference_documents": 5.69126366948088
+    }
+  ]
+}
