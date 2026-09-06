@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 from perq import Query, SQLiteStore, index
@@ -57,4 +58,5 @@ def test_missing_index_fails_cleanly(tmp_path):
 def test_version():
     result = cli("--version")
     assert result.returncode == 0
-    assert result.stdout.strip() == "0.2.0"
+    expected = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+    assert result.stdout.strip() == expected

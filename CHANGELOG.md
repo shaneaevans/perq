@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 2026-09-06
+
+- Update the README and PyPI package page with installation instructions now that
+  Perq is published on PyPI. Matching behavior and index formats are unchanged.
+- Use documentation links that resolve from both GitHub and PyPI.
+
 ## 0.2.0 — 2026-09-06
 
 - Rename PSearch to Perq, with the `perq` distribution, import namespace, and JSONL CLI.

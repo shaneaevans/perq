@@ -27,14 +27,14 @@ secrets. The first successful upload creates the PyPI project. See the official
 3. Tag that commit with `v` followed by the package version. Publish a GitHub release
    with its wheel, source distribution, and migration notes.
 4. Once the PyPI publisher is configured, dispatch the publishing workflow against
-   the version tag. For version 0.2.0:
+   the version tag. For version 0.2.1:
 
    ```sh
-   gh workflow run publish.yml --repo shaneaevans/perq --ref v0.2.0
+   gh workflow run publish.yml --repo shaneaevans/perq --ref v0.2.1
    ```
 
 5. Check the workflow result and install the published version in a clean environment.
-   Update the README installation instructions once PyPI publication succeeds.
+   Confirm the PyPI package page shows the expected installation instructions.
 
 The publishing workflow accepts version tags, checks the tag against package metadata,
 tests and builds distributions in a separate job, then uploads them with PyPI

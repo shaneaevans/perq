@@ -15,24 +15,20 @@ In the checked synthetic benchmarks, one process matched documents against
 **100,000 saved queries at 5,801 documents/second**, and against **one million at
 599 documents/second**, using MemoryStore. The million-query run used **842 MiB peak
 process memory**. These figures cover short, pre-tokenized documents drawn from a
-uniform vocabulary; [longer and common-term workloads are reported too](docs/benchmarks.md).
+uniform vocabulary; [longer and common-term workloads are reported too](https://github.com/shaneaevans/perq/blob/master/docs/benchmarks.md).
 
 ## Install
 
-Install version 0.2.0 from the [GitHub release](https://github.com/shaneaevans/perq/releases/tag/v0.2.0):
+Install from [PyPI](https://pypi.org/project/perq/):
 
 ```sh
-python -m pip install https://github.com/shaneaevans/perq/releases/download/v0.2.0/perq-0.2.0-py3-none-any.whl
-```
-
-The distribution and import names are `perq`, distinct from the unrelated `psearch`
-chemistry package. PyPI publication is pending. To develop from a source checkout:
-
-```sh
-python -m pip install .
+python -m pip install perq
 # Optional persistent key-value backend:
-python -m pip install '.[lmdb]'
+python -m pip install 'perq[lmdb]'
 ```
+
+The distribution and import names are `perq`. Wheels and source archives are also
+available from [GitHub releases](https://github.com/shaneaevans/perq/releases).
 
 ## Match a scraped item
 
@@ -63,7 +59,7 @@ with MemoryStore() as store:
 
 The first query means **sony AND (a7 OR a7iii) AND price_eur ≤ 1200**.
 IDs identify saved searches or subscriptions and can be strings or integers. Results
-follow query input order. See [the streaming scraper example](examples/scraping.py)
+follow query input order. See [the streaming scraper example](https://github.com/shaneaevans/perq/blob/master/examples/scraping.py)
 for matching an iterator of extracted items. Perq handles the matching step; your
 scraper handles fetching, extraction, and delivery of alerts.
 
@@ -89,8 +85,8 @@ perq inspect --index queries.sqlite
 ```
 
 Input defaults to stdin. Diagnostics go to stderr. See the checked
-[query](schemas/query.schema.json) and [document](schemas/document.schema.json)
-schemas and the [agent usage guide](docs/agent-guide.md).
+[query](https://github.com/shaneaevans/perq/blob/master/schemas/query.schema.json) and [document](https://github.com/shaneaevans/perq/blob/master/schemas/document.schema.json)
+schemas and the [agent usage guide](https://github.com/shaneaevans/perq/blob/master/docs/agent-guide.md).
 
 ## Performance and ease of use
 
@@ -110,7 +106,7 @@ The Elasticsearch setup and batching behavior are described in its
 [percolator documentation](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-percolate-query).
 Perq's direct advantage for a Python scraper is its small deployment and integration
 cost. The timings above compare the same three documents against a straightforward
-Python matcher; [the benchmark report](docs/benchmarks.md) gives the workload,
+Python matcher; [the benchmark report](https://github.com/shaneaevans/perq/blob/master/docs/benchmarks.md) gives the workload,
 sample sizes, and cases where the advantage is smaller.
 
 ## Query support
@@ -136,8 +132,8 @@ the old generation. Staging requires temporary disk space. This is not a guarant
 of bounded total memory for every workload.
 
 Performance depends on document length, term distribution, Boolean breadth, and
-the number of emitted matches. See [benchmark methodology and results](docs/benchmarks.md)
-and the [2026 backend decision](docs/storage.md). Broad queries and common terms
+the number of emitted matches. See [benchmark methodology and results](https://github.com/shaneaevans/perq/blob/master/docs/benchmarks.md)
+and the [2026 backend decision](https://github.com/shaneaevans/perq/blob/master/docs/storage.md). Broad queries and common terms
 can still require work proportional to the query count.
 
 ## Development
@@ -152,7 +148,7 @@ twine check dist/*
 ```
 
 Documentation examples, CLI behavior, JSON schemas, failure recovery, and randomized
-reference comparisons are tested. See [usage](docs/usage.md),
-[migration notes](docs/migration.md), [contributing](CONTRIBUTING.md), and the
-[changelog](CHANGELOG.md). Licensed under [MIT](LICENSE); contributors are listed in
-[AUTHORS](AUTHORS).
+reference comparisons are tested. See [usage](https://github.com/shaneaevans/perq/blob/master/docs/usage.md),
+[migration notes](https://github.com/shaneaevans/perq/blob/master/docs/migration.md), [contributing](https://github.com/shaneaevans/perq/blob/master/CONTRIBUTING.md), and the
+[changelog](https://github.com/shaneaevans/perq/blob/master/CHANGELOG.md). Licensed under [MIT](https://github.com/shaneaevans/perq/blob/master/LICENSE); contributors are listed in
+[AUTHORS](https://github.com/shaneaevans/perq/blob/master/AUTHORS).

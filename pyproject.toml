@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "perq"
-version = "0.2.0"
+version = "0.2.1"
 description = "Match scraped documents against large sets of saved queries in one Python process."
 readme = "README.md"
 requires-python = ">=3.11"
